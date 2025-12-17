@@ -39,3 +39,4 @@
 
 # debug information files
 *.dwo
+*.o\n*.out\nlex.yy.cpp\nparser.tab.cpp\nparser.tab.hpp\npyc\ntest_lexer\nminimal\n*.ll
