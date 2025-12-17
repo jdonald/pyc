@@ -12,13 +12,15 @@ A rudimentary Python-to-native-binary compiler in C++
 * Order-of-operations for the above operators matches what one would find in C
 * Allow parentheses
 * Can define custom functions via Python's `def`, that take anywhere from zero to four args, these get compiled to C-style functions in the resulting binary
+* In fact to make an executable program we require that there be a `def main()`
+* The only code allowed outside a `def` is of the form `if __name__ == '__main__': main()` (because we don't support an interpreter mode)
 * Ability to use Python's `print()` function only with a single integer argument, which gets compiled down to calling `printf("%d\n", ...)` (via a library call to libc, at least on Linux)
-
 ## Non-features
 
 * No support for `import`
 * No support for floating-point, strings, lists, tuples, sets, or any datatypes other than integers
 * No support for lambdas or functions as data/arguments
+* No global variables (again most code must be within `def` definitions)
 
 ## Usage syntax
 
