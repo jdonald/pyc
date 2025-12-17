@@ -39,4 +39,15 @@
 
 # debug information files
 *.dwo
-*.o\n*.out\nlex.yy.cpp\nparser.tab.cpp\nparser.tab.hpp\npyc\ntest_lexer\nminimal\n*.ll
+
+# Compiler executable and intermediate files
+pyc
+lex.yy.cpp
+parser.tab.cpp
+parser.tab.hpp
+*.ll
+
+# Test executables
+test_lexer
+minimal
+factorial
