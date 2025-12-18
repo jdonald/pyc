@@ -4,98 +4,99 @@
 #include "parser.tab.hpp"
 
 std::vector<int> indent_stack;
-int pending_tokens[100];
-int pending_count = 0;
-int pending_index = 0;
+std::vector<int> pending_tokens;
+size_t pending_idx = 0;
 
-#define YY_DECL int raw_yylex()
 void process_indent(int spaces);
+
+#define YY_DECL int yylex_orig()
+int yylex();
 %}
 
 %option noyywrap
 %option yylineno
 
-%x BOL
+%x INDENT_CHECK
 
 %%
 
-<BOL>^[ \t]*\n     { /* skip blank lines */ }
-<BOL>^[ \t]*#.*\n  { /* skip comment lines */ }
+<INDENT_CHECK>[ \t]*\n      { /* skip blank lines */ }
+<INDENT_CHECK>[ \t]*#[^\n]*\n { /* skip comment lines */ }
 
-<BOL>^[ \t]*   {
-                    /* Process indentation */
-                    int spaces = 0;
-                    for (int i = 0; i < yyleng; i++) {
-                        spaces += (yytext[i] == '\t') ? 4 : 1;
-                    }
-                    process_indent(spaces);
-                    BEGIN(INITIAL);
-                    if (pending_count > 0) {
-                        pending_index = 1;
-                        return pending_tokens[0];
-                    }
-                }
+<INDENT_CHECK>[ \t]*        {
+                                int spaces = 0;
+                                for (int i = 0; i < yyleng; i++) {
+                                    spaces += (yytext[i] == '\t') ? 4 : 1;
+                                }
+                                process_indent(spaces);
+                                BEGIN(INITIAL);
+                                if (pending_tokens.empty()) {
+                                    return yylex_orig();
+                                }
+                                pending_idx = 1;
+                                return pending_tokens[0];
+                            }
 
-\n              { BEGIN(BOL); return NEWLINE; }
+<INITIAL>\n                 { BEGIN(INDENT_CHECK); return NEWLINE; }
 
-#.*             { /* skip inline comments */ }
+<INITIAL>#[^\n]*            { /* skip comments */ }
 
-"def"           { return DEF; }
-"return"        { return RETURN; }
-"if"            { return IF; }
-"elif"          { return ELIF; }
-"else"          { return ELSE; }
-"while"         { return WHILE; }
-"and"           { return AND; }
-"or"            { return OR; }
-"print"         { return PRINT; }
-"__name__"      { return NAME_VAR; }
+<INITIAL>"def"              { return DEF; }
+<INITIAL>"return"           { return RETURN; }
+<INITIAL>"if"               { return IF; }
+<INITIAL>"elif"             { return ELIF; }
+<INITIAL>"else"             { return ELSE; }
+<INITIAL>"while"            { return WHILE; }
+<INITIAL>"and"              { return AND; }
+<INITIAL>"or"               { return OR; }
+<INITIAL>"print"            { return PRINT; }
+<INITIAL>"__name__"         { return NAME_VAR; }
 
-"=="            { return EQ; }
-"!="            { return NEQ; }
-">="            { return GTE; }
-"<="            { return LTE; }
-">"             { return GT; }
-"<"             { return LT; }
-"="             { return ASSIGN; }
-"+"             { return PLUS; }
-"-"             { return MINUS; }
-"*"             { return MULTIPLY; }
-"/"             { return DIVIDE; }
-"%"             { return MODULO; }
+<INITIAL>"=="               { return EQ; }
+<INITIAL>"!="               { return NEQ; }
+<INITIAL>">="               { return GTE; }
+<INITIAL>"<="               { return LTE; }
+<INITIAL>">"                { return GT; }
+<INITIAL>"<"                { return LT; }
+<INITIAL>"="                { return ASSIGN; }
+<INITIAL>"+"                { return PLUS; }
+<INITIAL>"-"                { return MINUS; }
+<INITIAL>"*"                { return MULTIPLY; }
+<INITIAL>"/"                { return DIVIDE; }
+<INITIAL>"%"                { return MODULO; }
 
-"("             { return LPAREN; }
-")"             { return RPAREN; }
-":"             { return COLON; }
-","             { return COMMA; }
+<INITIAL>"("                { return LPAREN; }
+<INITIAL>")"                { return RPAREN; }
+<INITIAL>":"                { return COLON; }
+<INITIAL>","                { return COMMA; }
 
-[a-zA-Z_][a-zA-Z0-9_]* {
-                    yylval.str_val = new std::string(yytext);
-                    return IDENTIFIER;
-                }
+<INITIAL>[a-zA-Z_][a-zA-Z0-9_]* {
+                                yylval.str_val = new std::string(yytext);
+                                return IDENTIFIER;
+                            }
 
-[0-9]+          {
-                    yylval.int_val = atoi(yytext);
-                    return INTEGER;
-                }
+<INITIAL>[0-9]+             {
+                                yylval.int_val = atoi(yytext);
+                                return INTEGER;
+                            }
 
-\"__main__\"    { yylval.str_val = new std::string("__main__"); return STRING; }
-\'__main__\'    { yylval.str_val = new std::string("__main__"); return STRING; }
+<INITIAL>\"__main__\"       { yylval.str_val = new std::string("__main__"); return STRING; }
+<INITIAL>\'__main__\'       { yylval.str_val = new std::string("__main__"); return STRING; }
 
-[ \t]+          { /* skip whitespace */ }
+<INITIAL>[ \t]+             { /* skip whitespace */ }
 
-.               { fprintf(stderr, "Unexpected character: %c\n", yytext[0]); }
+<INITIAL,INDENT_CHECK>.     { fprintf(stderr, "Unexpected character: '%c' at line %d\n", yytext[0], yylineno); }
 
-<<EOF>>         {
-                    while (!indent_stack.empty()) {
-                        indent_stack.pop_back();
-                        pending_tokens[pending_count++] = DEDENT;
-                    }
-                    if (pending_count > pending_index) {
-                        return pending_tokens[pending_index++];
-                    }
-                    return 0;
-                }
+<<EOF>>                     {
+                                while (!indent_stack.empty()) {
+                                    indent_stack.pop_back();
+                                    pending_tokens.push_back(DEDENT);
+                                }
+                                if (pending_idx < pending_tokens.size()) {
+                                    return pending_tokens[pending_idx++];
+                                }
+                                return 0;
+                            }
 
 %%
 
@@ -104,11 +105,11 @@ void process_indent(int spaces) {
 
     if (spaces > current_level) {
         indent_stack.push_back(spaces);
-        pending_tokens[pending_count++] = INDENT;
+        pending_tokens.push_back(INDENT);
     } else if (spaces < current_level) {
         while (!indent_stack.empty() && indent_stack.back() > spaces) {
             indent_stack.pop_back();
-            pending_tokens[pending_count++] = DEDENT;
+            pending_tokens.push_back(DEDENT);
         }
         if (!indent_stack.empty() && indent_stack.back() != spaces) {
             fprintf(stderr, "Indentation error at line %d\n", yylineno);
@@ -117,17 +118,17 @@ void process_indent(int spaces) {
 }
 
 int yylex() {
-    if (pending_index < pending_count) {
-        return pending_tokens[pending_index++];
+    if (pending_idx < pending_tokens.size()) {
+        return pending_tokens[pending_idx++];
     }
-    pending_count = 0;
-    pending_index = 0;
-    return raw_yylex();
+    pending_tokens.clear();
+    pending_idx = 0;
+    return yylex_orig();
 }
 
 void reset_lexer() {
     indent_stack.clear();
-    pending_count = 0;
-    pending_index = 0;
-    BEGIN(BOL);
+    pending_tokens.clear();
+    pending_idx = 0;
+    BEGIN(INDENT_CHECK);
 }
