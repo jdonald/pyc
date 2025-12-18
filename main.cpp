@@ -50,7 +50,7 @@ int compile_llvm_ir(const std::string& ir_code, const std::string& output_file, 
         }
 
         // Link to create executable
-        std::string cmd2 = "gcc " + obj_file + " -o " + output_file;
+        std::string cmd2 = "gcc -no-pie " + obj_file + " -o " + output_file;
         result = system(cmd2.c_str());
         if (result != 0) {
             std::cerr << "Error: gcc linking failed\n";

@@ -71,7 +71,7 @@ program:
         }
         $$ = root;
     }
-    | function_list NEWLINE if_main_block {
+    | function_list if_main_block {
         root = new ProgramNode();
         if ($1) {
             for (auto& func : *$1) {
@@ -94,11 +94,18 @@ function_list:
         $$ = new std::vector<std::unique_ptr<FunctionDefNode>>();
         $$->push_back(std::unique_ptr<FunctionDefNode>($1));
     }
+    | function_list DEDENT function_def {
+        $1->push_back(std::unique_ptr<FunctionDefNode>($3));
+        $$ = $1;
+    }
     | function_list function_def {
         $1->push_back(std::unique_ptr<FunctionDefNode>($2));
         $$ = $1;
     }
     | function_list NEWLINE {
+        $$ = $1;
+    }
+    | function_list DEDENT {
         $$ = $1;
     }
     ;

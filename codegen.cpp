@@ -258,20 +258,31 @@ void CodeGenerator::codegen_stmt(StmtNode* stmt) {
             }
 
             output << then_label << ":\n";
+            bool then_has_return = false;
             for (auto& s : node->then_block) {
+                if (s->type == NodeType::RETURN_STMT) then_has_return = true;
                 codegen_stmt(s.get());
             }
-            output << "  br label %" << end_label << "\n";
-
-            if (!node->else_block.empty()) {
-                output << else_label << ":\n";
-                for (auto& s : node->else_block) {
-                    codegen_stmt(s.get());
-                }
+            if (!then_has_return) {
                 output << "  br label %" << end_label << "\n";
             }
 
-            output << end_label << ":\n";
+            bool else_has_return = false;
+            if (!node->else_block.empty()) {
+                output << else_label << ":\n";
+                for (auto& s : node->else_block) {
+                    if (s->type == NodeType::RETURN_STMT) else_has_return = true;
+                    codegen_stmt(s.get());
+                }
+                if (!else_has_return) {
+                    output << "  br label %" << end_label << "\n";
+                }
+            }
+
+            // Only emit end label if at least one branch reaches it
+            if (!then_has_return || !else_has_return) {
+                output << end_label << ":\n";
+            }
             break;
         }
 

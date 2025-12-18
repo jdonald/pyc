@@ -23,18 +23,29 @@ int yylex();
 <INDENT_CHECK>[ \t]*\n      { /* skip blank lines */ }
 <INDENT_CHECK>[ \t]*#[^\n]*\n { /* skip comment lines */ }
 
-<INDENT_CHECK>[ \t]*        {
+<INDENT_CHECK>[ \t]+        {
+                                /* Line with indentation */
                                 int spaces = 0;
                                 for (int i = 0; i < yyleng; i++) {
                                     spaces += (yytext[i] == '\t') ? 4 : 1;
                                 }
                                 process_indent(spaces);
                                 BEGIN(INITIAL);
-                                if (pending_tokens.empty()) {
-                                    return yylex_orig();
+                                if (!pending_tokens.empty()) {
+                                    pending_idx = 1;
+                                    return pending_tokens[0];
                                 }
-                                pending_idx = 1;
-                                return pending_tokens[0];
+                            }
+
+<INDENT_CHECK>.             {
+                                /* Line with no indentation - put char back */
+                                yyless(0);
+                                process_indent(0);
+                                BEGIN(INITIAL);
+                                if (!pending_tokens.empty()) {
+                                    pending_idx = 1;
+                                    return pending_tokens[0];
+                                }
                             }
 
 <INITIAL>\n                 { BEGIN(INDENT_CHECK); return NEWLINE; }
