@@ -31,6 +31,82 @@ A rudimentary Python-to-native-binary compiler in C++
 * Project is written in C/C++, uses standard tools like `flex` and `bison` for parsing
 * Should work on both x86 and ARM, which suggests we may be best off using an architecture-portable intermediate format such as LLVM-IR
 
-## Sample usages
+## Dependencies
 
-Create a test program that implements a factorial using recursion
+* `g++` - C++ compiler with C++14 support
+* `flex` - Fast lexical analyzer generator
+* `bison` - GNU parser generator
+* `llc` - LLVM static compiler (part of LLVM toolchain)
+* `gcc` - For linking the final executable
+
+On Ubuntu/Debian:
+```bash
+sudo apt-get install g++ flex bison llvm gcc
+```
+
+## Building the Compiler
+
+```bash
+make
+```
+
+This will produce the `pyc` executable compiler.
+
+To clean build artifacts:
+```bash
+make clean
+```
+
+## Sample Usage
+
+### Factorial Example
+
+Create a file `factorial.py`:
+
+```python
+def factorial(n):
+    if n <= 1:
+        return 1
+    else:
+        return n * factorial(n - 1)
+
+def main():
+    result = factorial(5)
+    print(result)
+    return 0
+
+if __name__ == "__main__":
+    main()
+```
+
+Compile and run:
+```bash
+./pyc factorial.py -o factorial
+./factorial
+```
+
+Expected output:
+```
+120
+```
+
+### Simple Example
+
+A minimal program:
+
+```python
+def main():
+    return 0
+```
+
+Compile:
+```bash
+./pyc minimal.py -o minimal
+```
+
+### Creating Object Files
+
+To create an object file instead of an executable:
+```bash
+./pyc factorial.py -c -o factorial.o
+```
